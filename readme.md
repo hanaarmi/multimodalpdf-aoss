@@ -35,8 +35,7 @@ pip instal pipenv
 1. This repo is built for opensearch serverless. You must make opensearch
    serverless before running this app.
 
-2. To use devtools in your local, you should set Access Policy in Security
-   configuration tab.
+2. In Manage network access, check Enable access to OpenSearch Dashboards
 
 3. In devtools, make your index with name same as you set in .env file
 
