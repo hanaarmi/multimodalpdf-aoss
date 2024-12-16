@@ -39,8 +39,15 @@ def preprocessing():
 def insert_to_opensearch():
     savedir = "./images_mu"
 
-    # Create a Bedrock session for the default AWS credentials
+    # Create a Bedrock session
     bedrock_session = bedrock.get_bedrock_session(
+        os.getenv("AWS_ACCESS_KEY_ID"),
+        os.getenv("AWS_SECRET_ACCESS_KEY"),
+        os.getenv("AWS_REGION")
+    )
+
+    # Create an OpenSearch session
+    opensearch_session = opensearch.get_opensearch_session(
         os.getenv("AWS_ACCESS_KEY_ID"),
         os.getenv("AWS_SECRET_ACCESS_KEY"),
         os.getenv("AWS_REGION")
@@ -49,7 +56,12 @@ def insert_to_opensearch():
     # Insert the extracted metadata into OpenSearch
     metadata_file = savedir + "/metadata.json"
     opensearch.insert_metadata_to_opensearch(
-        metadata_file, bedrock_session, os.getenv("OPENSEARCH_ENDPOINT"), os.getenv("OPENSEARCH_INDEX_NAME"), os.getenv("OPENSEARCH_USERNAME"), os.getenv("OPENSEARCH_PASSWORD"))
+        metadata_file, 
+        bedrock_session,
+        opensearch_session,
+        os.getenv("OPENSEARCH_ENDPOINT"), 
+        os.getenv("OPENSEARCH_INDEX_NAME")
+    )
 
 preprocessing()
 insert_to_opensearch()

@@ -1,18 +1,36 @@
 import base64
 import json
-import requests
-from requests.auth import HTTPBasicAuth
 import logging
+import requests
+from requests_aws4auth import AWS4Auth
+import boto3
 
 import lib.bedrock as bedrock
 import lib.logging_config as logging_config
 
 logger = logging.getLogger(__name__)
 
+def get_opensearch_session(aws_access_key_id, aws_secret_access_key, region_name):
+    return boto3.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name
+    )
 
-def insert_metadata_to_opensearch(metadata_file, bedrock_session,
-                                  opensearch_endpoint, index_name,
-                                  username, password):
+def insert_metadata_to_opensearch(metadata_file, bedrock_session, opensearch_session,
+                                opensearch_endpoint, index_name):
+    # AWS4Auth 생성
+    credentials = opensearch_session.get_credentials()
+    region_name = opensearch_session.region_name
+    
+    awsauth = AWS4Auth(
+        credentials.access_key,
+        credentials.secret_key,
+        region_name,
+        'aoss',
+        session_token=credentials.token
+    )
+
     with open(metadata_file, 'r', encoding='utf-8') as f:
         metadatas = json.load(f)
 
@@ -59,38 +77,41 @@ def insert_metadata_to_opensearch(metadata_file, bedrock_session,
         doc_url = f"{opensearch_endpoint}/{index_name}/_doc"
 
         # 문서 인덱싱
-        response = requests.post(doc_url, auth=HTTPBasicAuth(
-            username, password), json=document)
+        response = requests.post(doc_url, auth=awsauth, json=document)
 
         # 결과 출력
         logger.info(f"Document indexing status: {response.status_code}")
         logger.info(f"Response: {response.json()}")
 
 
-def query_imagesearch_to_opensearch(query, query_type, doc_count=5, bedrock_session=None,
-                                    opensearch_endpoint=None, index_name=None,
-                                    username=None, password=None):
-    logger.info(f"Starting query_imagesearch_to_opensearch with query: {
-                query}, doc_count: {doc_count}")
+def query_imagesearch_to_opensearch(query, query_type, doc_count=5, 
+                                  bedrock_session=None, opensearch_session=None,
+                                  opensearch_endpoint=None, index_name=None):
+    logger.info(f"Starting query_imagesearch_to_opensearch with query: {query}, doc_count: {doc_count}")
 
-    if (opensearch_endpoint is None or
-            index_name is None or username is None or
-            password is None):
-        logger.error(
-            "opensearch_endpoint, index_name, username, password must be provided")
+    if (opensearch_endpoint is None or index_name is None or 
+        opensearch_session is None):
+        logger.error("Required parameters are missing")
         logger.error(f"opensearch_endpoint: {opensearch_endpoint}")
         logger.error(f"index_name: {index_name}")
-        logger.error(f"username: {username}")
-        logger.error(f"password: {password}")
+        logger.error(f"opensearch_session: {opensearch_session}")
         return [], []
+
+    # AWS4Auth 생성
+    credentials = opensearch_session.get_credentials()
+    region_name = opensearch_session.region_name
+    
+    awsauth = AWS4Auth(
+        credentials.access_key,
+        credentials.secret_key,
+        region_name,
+        'aoss',
+        session_token=credentials.token
+    )
 
     # Set OpenSearch endpoint and index name
     logger.info(f"OpenSearch endpoint: {opensearch_endpoint}")
     logger.info(f"Index name: {index_name}")
-
-    # Set basic authentication information
-    logger.info(f"Username: {username}")
-    logger.info("Password: [REDACTED]")
 
     # Query URL
     query_url = f"{opensearch_endpoint}/{index_name}/_search"
@@ -150,8 +171,7 @@ def query_imagesearch_to_opensearch(query, query_type, doc_count=5, bedrock_sess
     # logger.info(f"Query body: {json.dumps(query_body, indent=2)}")
 
     # HTTP request
-    response = requests.get(query_url, auth=HTTPBasicAuth(
-        username, password), json=query_body)
+    response = requests.get(query_url, auth=awsauth, json=query_body)
     logger.info(f"Response status code: {response.status_code}")
 
     # Process response
