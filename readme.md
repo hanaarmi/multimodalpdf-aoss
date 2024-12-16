@@ -32,23 +32,18 @@ pip instal pipenv
 
 ## Opensearch
 
-1. This repo is built for opensearch managed cluster, not serverless. You must
-   make opensearch cluster before running this app.
+1. This repo is built for opensearch serverless. You must make opensearch
+   serverless before running this app.
 
-2. After creating opensearch cluster, you should associate analysis-nori
-   packages first.
-
-3. To use devtools in your local, you should set Access Policy in Security
+2. To use devtools in your local, you should set Access Policy in Security
    configuration tab.
 
-4. In devtools, make your index with name same as you set in .env file
+3. In devtools, make your index with name same as you set in .env file
 
 ```
 PUT /[INDEX-NAME]
 {
   "settings": {
-    "number_of_shards": 1,
-    "number_of_replicas": 0,
     "knn.space_type": "cosinesimil",
     "knn": "true",
     "analysis": {
@@ -89,8 +84,11 @@ PUT /[INDEX-NAME]
       },
       "content_vector": {
         "type": "knn_vector",
-        "dimension": 1024
-      }
+        "dimension": 1024,
+        "method": {
+          "name": "hnsw",
+          "space_type": "cosinesimil",
+          "engine": "nmslib"      }
     }
   }
 }
